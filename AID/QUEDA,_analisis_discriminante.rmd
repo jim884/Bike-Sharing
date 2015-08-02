@@ -1,0 +1,80 @@
+```{r}
+bicis <- read.table("hour.csv", header=TRUE, sep=",")
+bicis.reducido <- bicis[, c(3:17)]
+bicis.reducido$temp <- NULL
+mydata <- bicis.reducido
+mydata$cnt <-  NULL
+mydata$casual <-  NULL
+mydata$registered <-  NULL
+library(MASS)
+```
+
+Como las variables de conteo tienen un rango de valores muy amplio, para poder realizar ciertos estudios sobre el dataset teniendo esta variable como objetivo se decide llevarlas a ser variables nominales.
+
+Para factorizar las variables numéricas se las parte en ciertos intervalos predefinidos.
+
+Como primer medida se utiliza la regla del pulgar que indica que la variable se debe particionar en tantos intervalos como la raiz cuadrada de n, siendo n la cantidad de observaciones.
+En este caso n es 17379 y por lo tanto la regla del pulgar arroja el número 93
+
+```{r}
+mydata$cnt_itervalos <- as.factor( as.numeric( cut(bicis.reducido$cnt,93)))
+mydata.lda <- lda(cnt_itervalos ~ ., data=mydata)
+mydata.lda.values <- predict(mydata.lda,mydata[,c(1:11)])
+tabla = table(mydata.lda.values$class,mydata$cnt_itervalos)
+plot(mydata.lda.values$x[,1],mydata.lda.values$x[,2]) 
+text(mydata.lda.values$x[,1],mydata.lda.values$x[,2],mydata$cnt_itervalos,cex=0.7,pos=4,col="red") 
+```
+
+Este gráfico es poco interpretable, ya que hay muchos intervalos y muchas observaciones en la variable objetivo.
+Podemos evaluar que tan bueno es el resultado consultando a la matriz de confusión y viendo el porcentaje de las observaciones acertadas.
+```{r}
+sum(diag(tabla))*100/nrow(mydata)
+```
+Con 93 intervalos, de la regla del pulgar, se aciertan aproximadamente un 15% de los casos.
+
+Se procede a continuación a realizar este mismo procedimiento variando la cantidad de intervalos y discriminando los 3 tipos de conteos de alquileres.
+Además para la predicción se realizará Validación Cruzada.
+```{r}
+vector = c()
+vector[1] = 100
+vector2 = c()
+vector2[1] = 100
+vector3 = c()
+vector3[1] = 100
+j=40
+x <- seq(1:j)
+for (i in 2:j) {
+  mydata$cnt_itervalos <- as.factor( as.numeric( cut(bicis.reducido$cnt,i)))
+  mydata.lda.2 <- lda(cnt_itervalos ~ ., data=mydata, CV=TRUE)
+  tabla = table(mydata.lda.2$class,mydata$cnt_itervalos)
+  vector[i] <- sum(diag(tabla))*100/nrow(mydata)
+}
+
+for (i in 2:j) {
+  mydata$cnt_itervalos <- as.factor( as.numeric( cut(bicis.reducido$casual,i)))
+  mydata.lda.2 <- lda(cnt_itervalos ~ ., data=mydata, CV=TRUE)
+  tabla2 = table(mydata.lda.2$class,mydata$cnt_itervalos)
+  vector2[i] <- sum(diag(tabla2))*100/nrow(mydata)
+}
+
+for (i in 2:j) {
+  mydata$cnt_itervalos <- as.factor( as.numeric( cut(bicis.reducido$registered,i)))
+  mydata.lda.2 <- lda(cnt_itervalos ~ ., data=mydata, CV=TRUE)
+  tabla3 = table(mydata.lda.2$class,mydata$cnt_itervalos)
+  vector3[i] <- sum(diag(tabla3))*100/nrow(mydata)
+}
+
+plot(x, vector, col = "cyan", pch = 6, xlab = "Cant de factores de variable de alquiler", ylab="Porcentaje de predicción acertada", main="Tasas de acierto en predicción")
+lines(x, vector, col = "cyan")
+points(x, vector2, col = "green", pch = 10)
+lines(x, vector2, col = "green")
+points(x, vector3, col = "red", pch = 20)
+lines(x, vector3, col = "red")
+legend( x="topright", 
+        legend=c("Totales","Casuales","Registrados"),
+        col=c("cyan","green","red"), lwd=1, lty=c(1,2,3), pch=c(6,10,20), merge=FALSE )
+```
+
+Se observa que a medida que la cantidad de intervalos se va incrementando va decreciendo el porcentaje correcto de predicción.
+Es de notar que los usuarios casuales tienen un comportamiento mucho mas predecible que el resto.
+Para los usuarios registrados o la totalidad de logra 50% o mas acierto cuando la cantidad de intervalos de la variable objetivo se encuentra en un número menor a 10. Mientras que para los usuarios casuales este porcentaje se mantiene para un numero de intervalos menor a 30.

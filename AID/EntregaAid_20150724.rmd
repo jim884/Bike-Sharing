@@ -1,0 +1,320 @@
+---
+title: "Trabajo Final AID"
+output: pdf_document
+author: José I. Matarazzo
+---
+
+El siguiente trabajo tiene como objetivo el uso de las técnicas utilizadas en la materia Análisis Inteligente de Datos.
+
+Dataset elegido: Bike Sharing.
+
+<h3>Descripción del dataset.</h3>
+<br>El dataset contiene el conteo de alquileres de bicicletas por hora durante los años 2011 y 2012 en el sistema compartido de Capital con su correspondiente información del clima y las estaciones climáticas. 
+
+Los sistemas compartidos de bicicletas son la nueva generación de alquiler de bicicletas tradicionales, donde todo el proceso de la pertenencia, alquiler y devolución es automático. A través de estos sistemas, el usuario es capaz de alquilar una bicicleta en una posición particular y devolverla en otra posición. Actualmente, hay alrededor de más de 500 programas compartidos de bicicletas en todo el mundo que se compone de más de 500 mil bicicletas. Hoy en día, existe un gran interés en estos sistemas debido a su importante papel en cuestiones de tráfico, ambientales y de salud.
+
+Además de interesantes aplicaciones del mundo real de los sistemas compartidos de bicicletas, las características de los datos que se generan por estos sistemas los hacen atractivos para la investigación. A diferencia de otros servicios de transporte como el colectivo o el subterraneo, la duración de los viajes, de salida y la posición de llegada se registra explícitamente en estos sistemas. Esta característica transforma al sistema compartido de bicicletas en una red de sensores virtuales que pueden ser utilizados para detectar la movilidad en la ciudad. 
+
+<h3>Información de las variables:</h3>
+<ul>
+- instant: record index
+- dteday : date
+- season : season (1:springer, 2:summer, 3:fall, 4:winter)
+- yr : year (0: 2011, 1:2012)
+- mnth : month ( 1 to 12)
+- hr : hour (0 to 23)
+- holiday : weather day is holiday or not (extracted from [Web Link])
+- weekday : day of the week
+- workingday : if day is neither weekend nor holiday is 1, otherwise is 0.
++ weathersit : 
+- 1: Clear, Few clouds, Partly cloudy, Partly cloudy
+- 2: Mist + Cloudy, Mist + Broken clouds, Mist + Few clouds, Mist
+- 3: Light Snow, Light Rain + Thunderstorm + Scattered clouds, Light Rain + Scattered clouds
+- 4: Heavy Rain + Ice Pallets + Thunderstorm + Mist, Snow + Fog
+- temp : Normalized temperature in Celsius. The values are derived via (t-t_min)/(t_max-t_min), t_min=-8, t_max=+39 (only in hourly scale)
+- atemp: Normalized feeling temperature in Celsius. The values are derived via (t-t_min)/(t_max-t_min), t_min=-16, t_max=+50 (only in hourly scale)
+- hum: Normalized humidity. The values are divided to 100 (max)
+- windspeed: Normalized wind speed. The values are divided to 67 (max)
+- casual: count of casual users
+- registered: count of registered users
+- cnt: count of total rental bikes including both casual and registered
+</ul>
+
+Fuente: https://archive.ics.uci.edu/ml/datasets/Bike+Sharing+Dataset
+<br>Fuente original: http://capitalbikeshare.com/system-data
+  
+Estudio del Dataset.
+--------------------
+
+```{r}
+#install.packages("ggplot2") 
+#install.packages("rmarkdown")
+#install.packages("nFactors")
+#install.packages("gridExtra") 
+```
+
+```{r results='hide', message=FALSE, warning=FALSE}
+library(nFactors)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(MASS)
+```
+
+```{r}
+bicis <- read.table("hour.csv", header=TRUE, sep=",")
+```
+
+<h3>Listado de las variables.</h3>
+```{r}
+names(bicis)
+```
+
+<h3>Vistazo a los datos.</h3>
+```{r}
+head(bicis)
+```
+
+<h3>Información de las variables.</h3>
+```{r}
+summary(bicis)
+```
+
+<h3>Evalúo si hay datos faltantes (NAs) en el Dataset.</h3>
+```{r}
+row.has.na <- apply(bicis, 1, function(x){any(is.na(x))})
+sum(row.has.na)
+```
+No hay datos faltantes en el Dataset.
+
+<h3>Distribución de cantidad de alquileres por hora.</h3>
+```{r}
+par(mfrow=c(1,3)) 
+boxplot(bicis$cnt, breaks=93, col="cyan", main="Totales", ylab="Cantidad de alq.")
+boxplot(bicis$casual, breaks=93, col="green", main="Casuales", ylab="Cantidad de alq.")
+boxplot(bicis$registered, breaks=93, col="red", main="Registrados", ylab="Cantidad de alq.")
+```
+
+<h3>Ditribución de frecuencia de cantidad de alquileres por hora.</h3>
+```{r}
+par(mfrow=c(3,1)) 
+hist(bicis$cnt, breaks=93, col="cyan",ylab="Frecuencia",xlab="Cantidad de alq.", main="Totales")
+hist(bicis$casual, breaks=93, col="green",ylab="Frecuencia",xlab="Cantidad de alq.", main="Casuales")
+hist(bicis$registered, breaks=93, col="red",ylab="Frecuencia",xlab="Cantidad de alq.", main="Registrados")
+```
+
+<h3>Cantidad de alquileres realizados por hora en cada año.</h3>
+<B>Año 2011</B>.
+```{r}
+year0 = subset(bicis, yr=0)
+par(mfrow=c(1,3)) 
+boxplot(year0$cnt, breaks=93, col="cyan", main="Totales", ylab="Cantidad de alq.")
+boxplot(year0$casual, breaks=93, col="green", main="Casuales", ylab="Cantidad de alq.")
+boxplot(year0$registered, breaks=93, col="red", main="Registrados", ylab="Cantidad de alq.")
+```
+<br><B>Año 2012</B>.
+```{r}
+year1 = subset(bicis, yr=1)
+par(mfrow=c(1,3)) 
+boxplot(year1$cnt, breaks=93, col="cyan", main="Totales", ylab="Cantidad de alq.")
+boxplot(year1$casual, breaks=93, col="green", main="Casuales", ylab="Cantidad de alq.")
+boxplot(year1$registered, breaks=93, col="red", main="Registrados", ylab="Cantidad de alq.")
+```
+
+La cantidad de alquileres realizados por cada uno de los grupos es muy parecida en ambos años.
+
+<h3>Cantidad de alquileres por hora por estación climática.</h3>
+```{r}
+estaciones <- c("primavera", "verano", "otoño", "invierno")
+xy = labs(x="Estación", y="Cantidad") 
+plot1 <- ggplot(data = bicis, aes(season, cnt)) + stat_summary(fun.y = sum,  geom = "bar")
+plot1 <- plot1 + xy + scale_x_discrete(breaks = 1:4, labels = estaciones) + geom_bar(stat="identity", colour="cyan") + labs(title="Totales") 
+plot2 <- ggplot(data = bicis, aes(season, casual)) + stat_summary(fun.y = sum,  geom = "bar")
+plot2<- plot2 + xy + scale_x_discrete(breaks = 1:4, labels = estaciones) + geom_bar(stat="identity", colour="green") + labs(title="Casuales") 
+plot3 <- ggplot(data = bicis, aes(season, registered)) +  stat_summary(fun.y = sum, geom = "bar")
+plot3<-plot3 + xy + scale_x_discrete(breaks = 1:4, labels = estaciones) + geom_bar(stat="identity", colour="red") + labs(title="Registrados") 
+grid.arrange(plot1, plot2, plot3,nrow=3)
+```
+
+<br><h3>Media de alquileres por hora por estación climática.</h3>
+```{r}
+plot1 <- ggplot(data = bicis, aes(season, cnt)) + stat_summary(fun.y = mean,  geom = "bar")
+plot1 <- plot1 + xy + scale_x_discrete(breaks = 1:4, labels = estaciones) + geom_bar(stat="identity", colour="cyan") + labs(title="Totales") 
+plot2 <- ggplot(data = bicis, aes(season, casual)) + stat_summary(fun.y = mean,  geom = "bar")
+plot2<- plot2 + xy + scale_x_discrete(breaks = 1:4, labels = estaciones) + geom_bar(stat="identity", colour="green") + labs(title="Casuales") 
+plot3 <- ggplot(data = bicis, aes(season, registered)) +  stat_summary(fun.y = mean, geom = "bar")
+plot3<-plot3 + xy + scale_x_discrete(breaks = 1:4, labels = estaciones) + geom_bar(stat="identity", colour="red") + labs(title="Registrados") 
+grid.arrange(plot1, plot2, plot3,nrow=3)
+```
+
+Se observa en los alquileres por estación climática que las mayor cantidad y la mayor media de alquileres se realiza otoño, seguido en cantidades similares por el verano y el invierno y en último lugar la primavera. Este último dato es llamativo ya que la primavera junto con el otoño suelen tener los mejores climas para usar las bicicletas.
+<br>Otra observación a destacar es que hay una diferencia en los alquileres por los usuarios casuales entre invierno a diferencia de los otros usuarios, alquilando una cantidad superior de rodados en verano que en invierno.
+
+<br><h3>Cantidad de alquileres por hora por situación climática.</h3>
+```{r}
+situacion.climatica <- c("despejado", "niebla", "nieve ligera", "fuertes nevadas")
+xy = labs(x="Situación climática", y="Cantidad") 
+plot1 <- ggplot(data = bicis, aes(weathersit, cnt)) + stat_summary(fun.y = sum,  geom = "bar")
+plot1 <- plot1 + xy + scale_x_discrete(breaks = 1:4, labels = situacion.climatica) + geom_bar(stat="identity", colour="cyan") + labs(title="Totales") 
+plot2 <- ggplot(data = bicis, aes(weathersit, casual)) + stat_summary(fun.y = sum,  geom = "bar")
+plot2<- plot2 + xy + scale_x_discrete(breaks = 1:4, labels = situacion.climatica) + geom_bar(stat="identity", colour="green") + labs(title="Casuales") 
+plot3 <- ggplot(data = bicis, aes(weathersit, registered)) +  stat_summary(fun.y = sum, geom = "bar")
+plot3<-plot3 + xy + scale_x_discrete(breaks = 1:4, labels = situacion.climatica) + geom_bar(stat="identity", colour="red") + labs(title="Registrados") 
+grid.arrange(plot1, plot2, plot3,nrow=3)
+```
+
+<br><h3>Media de alquileres por hora por situación climática.</h3>
+```{r}
+plot1 <- ggplot(data = bicis, aes(weathersit, cnt)) + stat_summary(fun.y = mean,  geom = "bar")
+plot1 <- plot1 + xy + scale_x_discrete(breaks = 1:4, labels = situacion.climatica) + geom_bar(stat="identity", colour="cyan") + labs(title="Totales") 
+plot2 <- ggplot(data = bicis, aes(weathersit, casual)) + stat_summary(fun.y = mean,  geom = "bar")
+plot2<- plot2 + xy + scale_x_discrete(breaks = 1:4, labels = situacion.climatica) + geom_bar(stat="identity", colour="green") + labs(title="Casuales") 
+plot3 <- ggplot(data = bicis, aes(weathersit, registered)) +  stat_summary(fun.y = mean, geom = "bar")
+plot3<-plot3 + xy + scale_x_discrete(breaks = 1:4, labels = situacion.climatica) + geom_bar(stat="identity", colour="red") + labs(title="Registrados") 
+grid.arrange(plot1, plot2, plot3,nrow=3)
+```
+
+El comportamiento de acuerdo a las situaciones climáticas es es el esperado, muchos alquileres en una clima despejado, una fracción de la anterior con niebla, pocos alquileres con nieve ligera y escasos con fuertes nevadas.
+
+<br>Correlacion de variables mas importantes.
+--------------------------------------------
+```{r}
+#Quito las variables que no aportan al estudio, pero hacen el mismo más pesado 
+bicis_corr <- bicis[, c(3, 6:17)]
+#Reordeno las variables
+bicis_corr <- bicis_corr[, c(2,1, 3:13)]
+pairs(bicis_corr, panel=panel.smooth)
+```
+<br>
+<ul>
+- Se observa que las variables temp y atemp producen respuestas similares, ya que guardan gran relación entre si.
+- La respuesta de las variables de conteo de usuarios casuales, registrados y los totales también son similares.
+
+<br>Análisis de Componentes Principales (PCA)
+------------------
+
+```{r}
+#Acoto las variables que se justifican para el estudio
+bicis.reducido <- bicis[, c(3:17)]
+bicis.reducido$temp <- NULL
+```
+
+```{r}
+fit <- princomp(bicis.reducido, cor=TRUE)
+summary(fit)
+```
+<br>La primer componente principal resume el 23.61% de la varianza, mientras que la segunda cubre el 14.83% y las restantes en orden 9.87%, 8.26%, 7.62%, etc.
+
+<h3>Loadings, cuánto aportan a cada componente las variables.</h3>
+```{r}
+loadings(fit) # pc loadings 
+```
+
+<h3>Gráfico de sedimentación.</h3>
+```{r}
+plot(fit, type="lines", main=" ") # scree plot 
+```
+
+<br>De acuerdo al gráfico de sedimentación el número óptimo de componentes principales a utilizar es entre 3 y 5.
+
+<h3>Vistazo a los scores PCA de algunas observaciones.</h3>
+```{r}
+head(fit$scores) # the principal components
+biplot(fit, col=c("white","red"))
+```
+<br>Del biplot se observa lo siguiente:
+<ul>
+- Las variables de conteo de alquiler de bicicletas (cnt, registered y casual) son las que mas aportan a explicar la primer componente de ACP. Además queda en claro que estas 3 varibles se comportan en forma similar. 
+- Lo mismo sucede con el aporte a la segunda componente con las variables del mes y la estación (mnth, season), son las que mas explica y están muy ligadas.
+- En menor medida que las mencionadas a la primer componente también aportan las variables de humedad, la temperatura y hora de alquiler. En el caso de la segunda componente además se puede mencionar a las variables de humedad, temperatura y velocidad del tiempo como otras de las que mas aportan.
+
+Determinación del número de factores a extraer.
+------------------
+```{r}
+ev <- eigen(cor(bicis.reducido)) 
+ap <- parallel(subject=nrow(bicis.reducido),var=ncol(bicis.reducido),
+  rep=100,cent=.05)
+nS <- nScree(x=ev$values, aparallel=ap$eigen$qevpea, xlab="Componentes")
+plotnScree(nS)
+```
+
+El número de factores óptimos a extraer con PCA es 3.
+
+Análisis Discriminante.
+--------------------
+
+Como las variables de conteo tienen un rango de valores muy amplio, para poder realizar ciertos estudios sobre el dataset teniendo esta variable como objetivo se decide llevarlas a ser variables nominales.
+
+Para factorizar las variables numéricas se las parte en ciertos intervalos predefinidos.
+
+Como primer medida se utiliza la regla del pulgar que indica que la variable se debe particionar en tantos intervalos como la raiz cuadrada de n, siendo n la cantidad de observaciones.
+En este caso n es 17379 y por lo tanto la regla del pulgar arroja el número 93
+
+```{r}
+bicis <- read.table("hour.csv", header=TRUE, sep=",")
+bicis.reducido <- bicis[, c(3:17)]
+bicis.reducido$temp <- NULL
+mydata <- bicis.reducido
+mydata$cnt <-  NULL
+mydata$casual <-  NULL
+mydata$registered <-  NULL
+mydata$cnt_itervalos <- as.factor( as.numeric( cut(bicis.reducido$cnt,93)))
+mydata.lda <- lda(cnt_itervalos ~ ., data=mydata)
+mydata.lda.values <- predict(mydata.lda,mydata[,c(1:11)])
+tabla = table(mydata.lda.values$class,mydata$cnt_itervalos)
+plot(mydata.lda.values$x[,1],mydata.lda.values$x[,2]) 
+text(mydata.lda.values$x[,1],mydata.lda.values$x[,2],mydata$cnt_itervalos,cex=0.7,pos=4,col="red") 
+```
+
+Este gráfico es poco interpretable, ya que hay muchos intervalos y muchas observaciones en la variable objetivo.
+Podemos evaluar que tan bueno es el resultado consultando a la matriz de confusión y viendo el porcentaje de las observaciones acertadas.
+```{r}
+sum(diag(tabla))*100/nrow(mydata)
+```
+Con 93 intervalos, de la regla del pulgar, se aciertan aproximadamente un 15% de los casos.
+
+Se procede a continuación a realizar este mismo procedimiento variando la cantidad de intervalos y discriminando los 3 tipos de conteos de alquileres.
+Además para la predicción se realizará Validación Cruzada.
+```{r}
+vector = c()
+vector[1] = 100
+vector2 = c()
+vector2[1] = 100
+vector3 = c()
+vector3[1] = 100
+j=95
+x <- seq(1:j)
+for (i in 2:j) {
+  mydata$cnt_itervalos <- as.factor( as.numeric( cut(bicis.reducido$cnt,i)))
+  mydata.lda.2 <- lda(cnt_itervalos ~ ., data=mydata, CV=TRUE)
+  tabla = table(mydata.lda.2$class,mydata$cnt_itervalos)
+  vector[i] <- sum(diag(tabla))*100/nrow(mydata)
+}
+
+for (i in 2:j) {
+  mydata$cnt_itervalos <- as.factor( as.numeric( cut(bicis.reducido$casual,i)))
+  mydata.lda.2 <- lda(cnt_itervalos ~ ., data=mydata, CV=TRUE)
+  tabla2 = table(mydata.lda.2$class,mydata$cnt_itervalos)
+  vector2[i] <- sum(diag(tabla2))*100/nrow(mydata)
+}
+
+for (i in 2:j) {
+  mydata$cnt_itervalos <- as.factor( as.numeric( cut(bicis.reducido$registered,i)))
+  mydata.lda.2 <- lda(cnt_itervalos ~ ., data=mydata, CV=TRUE)
+  tabla3 = table(mydata.lda.2$class,mydata$cnt_itervalos)
+  vector3[i] <- sum(diag(tabla3))*100/nrow(mydata)
+}
+
+plot(x, vector, col = "cyan", pch = 6, xlab = "Cantidad de intervalos de la variable cantidad de alquileres", ylab="Porcentaje de predicción acertada", main="Tasas de acierto en predicción")
+lines(x, vector, col = "cyan")
+points(x, vector2, col = "green", pch = 10)
+lines(x, vector2, col = "green")
+points(x, vector3, col = "red", pch = 20)
+lines(x, vector3, col = "red")
+legend( x="topright", 
+        legend=c("Totales","Casuales","Registrados"),
+        col=c("cyan","green","red"), lwd=1, lty=c(1,2,3), pch=c(6,10,20), merge=FALSE )
+```
+
+Se observa que a medida que la cantidad de intervalos se incrementa va decreciendo el porcentaje correcto de predicción. Es de notar que los usuarios casuales tienen un comportamiento mucho más predecible que el resto. Para los usuarios registrados o la totalidad de logra 50% o mas acierto cuando la cantidad de intervalos de la variable objetivo se encuentra en un número menor a 10. Mientras que para los usuarios casuales este porcentaje se mantiene para un número de intervalos menor a 30.
+
