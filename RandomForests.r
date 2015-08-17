@@ -42,21 +42,9 @@ fit <- randomForest(as.factor(count) ~ season + holiday + weather + dow+ hour + 
 #Predict values and save output
 Prediction <- predict(fit, test)
 submit <- data.frame(datetime = test$datetime, count = Prediction)
-#write.csv(submit, file = "random-forest.csv", row.names = FALSE)
-nrow(submit)
-nrow(submit)
+
 
 rmsle(saved,as.numeric(submit$count))
 #0.70745
-
-
-#n <- nrow(test)
-#interno <- 0
-#for(i in 1:n) {
-#  interno <- interno +(log(submit$count[i]+1)-log(saved[i]+1))^2
-#}
-
-#final <- sqrt(interno/n)
-#final
 
 warnings()
